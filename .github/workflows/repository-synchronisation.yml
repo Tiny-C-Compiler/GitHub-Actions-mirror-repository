@@ -1,0 +1,18 @@
+# checkout@v3: checks-out/downloads your repository under $GITHUB_WORKSPACE with fetch-depth: 1, so your workflow can access it. 
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  git-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: git-sync
+        uses: wei/git-sync@v3
+        with:
+          source_repo: "https://repo.or.cz/tinycc.git"
+          source_branch: "mob"
+          destination_repo: "Tiny-C-Compiler/mirror-repository"
+          destination_branch: "mob"
+
