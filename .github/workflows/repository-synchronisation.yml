@@ -13,6 +13,6 @@ jobs:
         with:
           source_repo: "https://repo.or.cz/tinycc.git"
           source_branch: "mob"
-          destination_repo: "Tiny-C-Compiler/mirror-repository.git"
+          destination_repo: "Tiny-C-Compiler/mirror-repository"
           destination_branch: "mob"
 
