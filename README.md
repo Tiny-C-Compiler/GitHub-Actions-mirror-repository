@@ -1,4 +1,7 @@
 # mirror-repositry-github-actions
+The source code is Mirrored from https://repo.or.cz/w/tinycc.git
+
+Guide on using SSH keys to setup Mirroring.
 
 1. Generate SSH Key using any tool.  
    *  Recommended: to download and use ssh-keygen tool.  
