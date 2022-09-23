@@ -15,4 +15,5 @@ jobs:
           source_branch: "mob"
           destination_repo: "Tiny-C-Compiler/mirror-repository.git"
           destination_branch: "mob"
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # optional
 
