@@ -45,3 +45,4 @@ jobs:
         with:
           repository: ${{ secrets.owner }}/${{ secrets.repo }}
           token: ${{ secrets.CUSTOM_TOKEN }}
+          tag_name: test
