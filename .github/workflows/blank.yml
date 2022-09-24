@@ -37,3 +37,9 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
+
+      - name: Release
+        uses: softprops/action-gh-release@v1
+        with:
+          repository: ${{ secrets.owner }}/${{ secrets.repo }}
+          token: ${{ secrets.CUSTOM_TOKEN }}
