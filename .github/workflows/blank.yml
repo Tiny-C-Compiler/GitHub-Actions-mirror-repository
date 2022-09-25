@@ -77,4 +77,6 @@ jobs:
           token: ${{ secrets.CUSTOM_TOKEN }}
           tag_name: latest-version
           name: '${{env.VERSION }}: Latest Version'
+          files: |
+            linux-release.zip
           # prerelease: true  # Hides the release in the front-page of github repository
