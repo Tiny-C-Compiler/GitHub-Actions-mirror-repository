@@ -44,7 +44,7 @@ jobs:
         run: |
           echo $PWD
           ls $PWD/output
-          zip -r 'linux-release.zip' 'output'
+          zip -r 'x86_64-linux-gnu.zip' 'output'
         
       # Get version from TCC project folder  
       - name: getVERSION
@@ -78,5 +78,5 @@ jobs:
           tag_name: latest-version
           name: '${{env.VERSION }}: Latest Version'
           files: |
-            linux-release.zip
+            x86_64-linux-gnu.zip
           # prerelease: true  # Hides the release in the front-page of github repository
