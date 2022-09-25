@@ -35,8 +35,15 @@ jobs:
         run: ./configure
       - name: make
         run: make
+        
+      # Get version from TCC project folder  
       - name: getVERSION
-        run: value=`cat VERSION`
+        run: VERSION_tcc=`cat VERSION`
+        
+      - name: use output
+        run: |
+          echo $VERSION_tcc
+          echo ${{env.VERSION_tcc }}
 
       # Runs a single command using the runners shell
       - name: Run a one-line script
