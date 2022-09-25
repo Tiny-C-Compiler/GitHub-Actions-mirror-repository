@@ -40,8 +40,12 @@ jobs:
       - name: getVERSION
         run: export VERSION_tcc=`cat VERSION`
         
-      - name: getVERSION2
-        run: echo "::set-env name=VERSION::19.2.5"
+    #  - name: getVERSION2
+    #    run: echo "::set-env name=VERSION::19.2.5"
+      - name: Set variables
+        run: |
+          VER=$(cat VERSION)
+          echo "VERSION=$VER" >> $GITHUB_ENV
        
         
       - name: use output
