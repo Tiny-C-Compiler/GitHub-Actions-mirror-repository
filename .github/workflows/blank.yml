@@ -35,6 +35,8 @@ jobs:
         run: ./configure
       - name: make
         run: make
+      - name: getVERSION
+        run: value=`cat VERSION`
 
       # Runs a single command using the runners shell
       - name: Run a one-line script
@@ -52,5 +54,5 @@ jobs:
           repository: ${{ secrets.owner }}/${{ secrets.repo }}
           token: ${{ secrets.CUSTOM_TOKEN }}
           tag_name: latest-version
-          name: ${{ github.workspace }}-VERSION Latest Version
+          name: $value ${{ github.workspace }}-VERSION Latest Version
           # prerelease: true  # Hides the release in the front-page of github repository
