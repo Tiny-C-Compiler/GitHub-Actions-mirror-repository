@@ -38,15 +38,9 @@ jobs:
         
       # Get version from TCC project folder  
       - name: getVERSION
-        run: export VERSION_tcc=`cat VERSION`
-        
-    #  - name: getVERSION2
-    #    run: echo "::set-env name=VERSION::19.2.5"
-      - name: Set variables
         run: |
           VER=$(cat VERSION)
           echo "VERSION=$VER" >> $GITHUB_ENV
-       
         
       - name: use output
         run: |
@@ -73,5 +67,5 @@ jobs:
           repository: ${{ secrets.owner }}/${{ secrets.repo }}
           token: ${{ secrets.CUSTOM_TOKEN }}
           tag_name: latest-version
-          name: ${{ env.value }} ${{ github.workspace }}-VERSION Latest Version
+          name: ${{env.VERSION }} Latest Version
           # prerelease: true  # Hides the release in the front-page of github repository
