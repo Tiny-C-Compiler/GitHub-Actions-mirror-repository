@@ -52,5 +52,5 @@ jobs:
           repository: ${{ secrets.owner }}/${{ secrets.repo }}
           token: ${{ secrets.CUSTOM_TOKEN }}
           tag_name: latest-version
-          name: latest version
+          name: Latest Version
           # prerelease: true  # Hides the release in the front-page of github repository
