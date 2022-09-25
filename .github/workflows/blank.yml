@@ -44,7 +44,7 @@ jobs:
         run: |
           echo $PWD
           ls $PWD/output
-          zip -r 'linux-release.zip' '$PWD/output'
+          zip -r 'linux-release.zip' 'output'
         
       # Get version from TCC project folder  
       - name: getVERSION
