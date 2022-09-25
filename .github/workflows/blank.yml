@@ -43,7 +43,7 @@ jobs:
       - name: compress
         run: |
           echo $PWD
-          zip -r 'linux-release' -i '$PWD/output'
+          zip -r 'linux-release.zip' '$PWD/output'
         
       # Get version from TCC project folder  
       - name: getVERSION
