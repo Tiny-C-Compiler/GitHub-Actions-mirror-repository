@@ -40,16 +40,15 @@ jobs:
       - name: getVERSION
         run: |
           VER=$(cat VERSION)
-          echo "VERSION=$VER" >> $GITHUB_ENV
+          echo "VERSION=$VER" >> $GITHUB_ENV 
+          # More information: https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions#setting-an-environment-variable
         
       - name: use output
         run: |
-          echo $name 
-          echo ${{env.name }}
           echo $VERSION
           echo ${{env.VERSION }}
-          echo $VERSION_tcc
-          echo ${{env.VERSION_tcc }}
+
+
 
       # Runs a single command using the runners shell
       - name: Run a one-line script
