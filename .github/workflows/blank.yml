@@ -32,9 +32,11 @@ jobs:
           
       # Runs make script to compile the application    
       - name: configure
-        run: ./configure
+        run: ./configure --prefix='$PWD/output' --source-path='$PWD' --cc=gcc 
       - name: make
         run: make
+      - name: output
+        run: make install
         
       # Get version from TCC project folder  
       - name: getVERSION
