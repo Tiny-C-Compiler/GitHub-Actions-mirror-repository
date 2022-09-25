@@ -31,13 +31,13 @@ jobs:
           repository: 'Tiny-C-Compiler/mirror-repository'
           
       # Runs make script to compile the application    
-      - name: configure
-        run: ./configure --prefix='$PWD/output' --source-path='$PWD' --cc=gcc 
+      - name: configure compilation for x86_64
+        run: ./configure --prefix='$PWD/output_x86_64' --source-path='$PWD' --cc=gcc --cpu=x86_64
         
-      - name: make
+      - name: Start Compilation
         run: make
         
-      - name: output
+      - name: Move compiled files to output_x86_64 folder
         run: make install
         
       - name: compress
