@@ -43,7 +43,7 @@ jobs:
       - name: compress
         run: |
           echo $PWD
-          ls $PWD/output
+          ls $PWD/output_x86_64
           zip -r 'x86_64-linux-gnu.zip' 'output_x86_64'
         
       # Get version from TCC project folder  
