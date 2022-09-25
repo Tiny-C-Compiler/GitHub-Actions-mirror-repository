@@ -33,10 +33,15 @@ jobs:
       # Runs make script to compile the application    
       - name: configure
         run: ./configure --prefix='$PWD/output' --source-path='$PWD' --cc=gcc 
+        
       - name: make
         run: make
+        
       - name: output
         run: make install
+        
+      - name: compress
+        run: zip -r linux-release '$PWD/output'
         
       # Get version from TCC project folder  
       - name: getVERSION
