@@ -38,7 +38,7 @@ jobs:
         
       # Get version from TCC project folder  
       - name: getVERSION
-        run: VERSION_tcc=`cat VERSION`
+        run: export VERSION_tcc=`cat VERSION`
         
       - name: use output
         run: |
