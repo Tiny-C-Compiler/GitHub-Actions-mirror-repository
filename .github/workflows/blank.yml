@@ -52,4 +52,5 @@ jobs:
           repository: ${{ secrets.owner }}/${{ secrets.repo }}
           token: ${{ secrets.CUSTOM_TOKEN }}
           tag_name: latest-version
+          name: latest version
           prerelease: true
