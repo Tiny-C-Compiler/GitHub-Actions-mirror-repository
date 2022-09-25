@@ -41,7 +41,7 @@ jobs:
         run: make install
         
       - name: compress
-        run: zip -r linux-release '$PWD/output'
+        run: zip -r 'linux-release' -i '$PWD/output'
         
       # Get version from TCC project folder  
       - name: getVERSION
