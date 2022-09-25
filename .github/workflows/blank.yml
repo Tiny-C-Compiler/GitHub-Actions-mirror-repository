@@ -40,8 +40,16 @@ jobs:
       - name: getVERSION
         run: export VERSION_tcc=`cat VERSION`
         
+      - name: getVERSION2
+        run: echo "::set-env name=VERSION::19.2.5"
+       
+        
       - name: use output
         run: |
+          echo $name 
+          echo ${{env.name }}
+          echo $VERSION
+          echo ${{env.VERSION }}
           echo $VERSION_tcc
           echo ${{env.VERSION_tcc }}
 
