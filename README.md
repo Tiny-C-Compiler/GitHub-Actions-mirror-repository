@@ -20,3 +20,5 @@ And you do this, remember to trigger workflow, it should all work.
 ![image](https://github.com/user-attachments/assets/1542b854-05de-4ca6-9e5c-69c1f9848d76)
 ![image](https://github.com/user-attachments/assets/ca77b5fc-2a2e-41eb-8911-3a29d054bbf3)
 
+### Cross-compilation test
+It seems that Personal Access Token (PAT) with `repo` permission scope, might be required to make releases on mirror-repository.  
