@@ -4,6 +4,9 @@ on:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
+permissions:
+  contents: write  # Ensure the token has permission to push changes
+
 jobs:
   git-sync:
     runs-on: ubuntu-latest
@@ -13,6 +16,7 @@ jobs:
         with:
           source_repo: "https://repo.or.cz/tinycc.git"
           source_branch: "mob"
-          destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
+          destination_repo: "https://github.com/Tiny-C-Compiler/mirror-repository.git"
           destination_branch: "mob"
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # optional
+          destination_token: ${{ secrets.GITHUB_TOKEN }}
+
