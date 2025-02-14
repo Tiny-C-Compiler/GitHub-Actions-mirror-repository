@@ -1,7 +1,6 @@
 name: Build and Release TCC (mob branch)
 
 on:
-  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
@@ -24,14 +23,20 @@ jobs:
           wget -O tcc-mob.zip https://github.com/Tiny-C-Compiler/mirror-repository/archive/refs/heads/mob.zip
           unzip tcc-mob.zip
           mv mirror-repository-mob tcc
-          cd tcc
 
       - name: Install dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y build-essential mingw-w64 gcc-arm-linux-gnueabi
 
-      - name: Configure and Build
+      - name: Build Native TCC (for tools)
+        run: |
+          cd tcc
+          ./configure
+          make -j$(nproc)
+          mv c2str c2str_host
+
+      - name: Configure and Build Cross-Compiled TCC
         run: |
           cd tcc
           case "${{ matrix.target }}" in
@@ -42,7 +47,7 @@ jobs:
               ;;
             windows-x86_64)
               ./configure --cc=x86_64-w64-mingw32-gcc --prefix=/usr
-              make -j$(nproc)
+              make -j$(nproc) HOST_C2STR=./c2str_host
               mv tcc.exe ../tcc-windows-x86_64.exe
               ;;
             linux-arm)
