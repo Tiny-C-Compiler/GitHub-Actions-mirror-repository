@@ -1,3 +1,5 @@
+name: Cross-Platform Build and Release
+
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -7,7 +9,7 @@ jobs:
   git-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: git-sync
+      - name: Sync repositories
         uses: wei/git-sync@v3
         with:
           source_repo: "https://repo.or.cz/tinycc.git"
@@ -27,30 +29,46 @@ jobs:
           ref: mob
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-      - name: Install cross-compilation tools
+      - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc-mingw-w64-x86-64 build-essential
+          sudo apt-get install -y \
+            gcc \
+            make \
+            gcc-mingw-w64-x86-64 \
+            binutils-mingw-w64-x86-64 \
+            mingw-w64-x86-64-dev \
+            build-essential
 
-      - name: Build Linux version
+      - name: Build Linux binary
         run: |
           ./configure
           make
           mv tcc tcc-linux
 
-      - name: Build Windows version
+      - name: Build Windows binary
         run: |
-          ./configure --cross-prefix=x86_64-w64-mingw32-
+          # Configure for Windows target with static linking
+          ./configure --cross-prefix=x86_64-w64-mingw32- \
+            --cpu=x86_64 \
+            --extra-cflags="-static" \
+            --extra-ldflags="-static" \
+            --with-sysroot=/usr/x86_64-w64-mingw32
+
+          # Remove Linux-specific libraries from Makefile
+          sed -i 's/-ldl//g' Makefile
+          sed -i 's/-lpthread//g' Makefile
+          
           make
           mv tcc.exe tcc-windows.exe
 
-      - name: Upload Linux binary
+      - name: Upload Linux artifact
         uses: actions/upload-artifact@v4
         with:
           name: tcc-linux
           path: tcc-linux
 
-      - name: Upload Windows binary
+      - name: Upload Windows artifact
         uses: actions/upload-artifact@v4
         with:
           name: tcc-windows.exe
@@ -70,7 +88,7 @@ jobs:
         with:
           name: tcc-windows.exe
 
-      - name: Create Release
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
           repository: Tiny-C-Compiler/mirror-repository
@@ -80,4 +98,9 @@ jobs:
           files: |
             tcc-linux
             tcc-windows.exe
-          body: "Latest cross-platform builds (automatically generated)"
+          body: |
+            Automated cross-platform build containing:
+            - Linux executable (ELF64)
+            - Windows executable (PE32+)
+            
+            Built from mob branch at $(date -u +"%Y-%m-%dT%H:%M:%SZ")
