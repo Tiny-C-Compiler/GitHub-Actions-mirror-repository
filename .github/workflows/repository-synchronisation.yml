@@ -22,4 +22,4 @@ jobs:
           source_branch: "mob"
           destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
           destination_branch: "mob"
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}  # optional
+          #ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}  # optional
