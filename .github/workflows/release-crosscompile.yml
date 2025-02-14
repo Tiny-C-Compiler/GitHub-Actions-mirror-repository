@@ -1,4 +1,4 @@
-name: Cross-Compile TCC for Windows & Linux
+name: Cross-Compile TCC
 
 on:
   push:
@@ -7,78 +7,61 @@ on:
   pull_request:
     branches:
       - mob
-  workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
+      - name: Checkout TCC source code
         uses: actions/checkout@v4
         with:
           repository: Tiny-C-Compiler/mirror-repository
           ref: mob
-          fetch-depth: 0
 
       - name: Install dependencies
         run: |
-          echo "Installing dependencies..."
-          sudo apt update
-          sudo apt install -y mingw-w64 build-essential make autoconf
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 gcc-mingw-w64 make autoconf automake
 
-      - name: Debug: Verify installed compilers
+      - name: Debug environment
         run: |
-          echo "GCC version:"
-          gcc --version
-          echo "MinGW-w64 version:"
-          x86_64-w64-mingw32-gcc --version
-
-      - name: Extract version info
-        run: |
-          echo "Extracting version info..."
-          TCC_VERSION=$(head -n 1 VERSION)
-          echo "TCC Version: $TCC_VERSION"
-          echo "TCC_VERSION=$TCC_VERSION" >> $GITHUB_ENV
+          echo "PATH: $PATH"
+          echo "GCC Version: $(gcc --version)"
+          echo "MinGW-w64 Version: $(x86_64-w64-mingw32-gcc --version)"
 
       - name: Compile for Linux
         run: |
-          echo "Compiling for Linux..."
           ./configure
           make -j$(nproc)
           strip tcc
           mv tcc tcc-linux
 
-      - name: Compile for Windows (Cross-Compile)
+      - name: Compile for Windows (cross-compile)
         run: |
-          echo "Compiling for Windows..."
           ./configure --cross-prefix=x86_64-w64-mingw32-
           make -j$(nproc)
-          strip tcc.exe
+          x86_64-w64-mingw32-strip tcc.exe
           mv tcc.exe tcc-windows.exe
 
-      - name: Debug: List built binaries
-        run: ls -lh tcc-linux tcc-windows.exe
-
-      - name: Create Release Assets
+      - name: Create release artifacts
         run: |
           mkdir release
           mv tcc-linux release/tcc-linux
           mv tcc-windows.exe release/tcc-windows.exe
-          tar -czvf tcc-linux.tar.gz -C release tcc-linux
-          zip -r tcc-windows.zip release/tcc-windows.exe
-          ls -lh tcc-linux.tar.gz tcc-windows.zip
+          tar -czvf tcc-latest-linux.tar.gz -C release tcc-linux
+          zip -r tcc-latest-windows.zip release/tcc-windows.exe
 
-      - name: Upload to GitHub Releases
+      - name: Upload release to GitHub
         uses: softprops/action-gh-release@v2
         with:
-          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: latest
-          repository: Tiny-C-Compiler/mirror-repository
-          name: "Latest TinyCC Build"
-          body: "Automated build for TinyCC (Linux & Windows)."
-          draft: false
-          prerelease: false
           files: |
-            tcc-linux.tar.gz
-            tcc-windows.zip
+            tcc-latest-linux.tar.gz
+            tcc-latest-windows.zip
+          repository: Tiny-C-Compiler/mirror-repository
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
