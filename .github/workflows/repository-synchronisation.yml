@@ -1,4 +1,5 @@
-# checkout@v3: checks-out/downloads your repository under $GITHUB_WORKSPACE with fetch-depth: 1, so your workflow can access it. 
+name: Git Sync
+
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -8,11 +9,24 @@ jobs:
   git-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: git-sync
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      - name: Setup SSH Key
+        run: |
+          mkdir -p ~/.ssh
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan github.com >> ~/.ssh/known_hosts
+
+      - name: Test SSH Connection
+        run: ssh -T git@github.com || exit 1
+
+      - name: Run git-sync
         uses: wei/git-sync@v3
         with:
           source_repo: "https://repo.or.cz/tinycc.git"
           source_branch: "mob"
           destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
           destination_branch: "mob"
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # optional
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
