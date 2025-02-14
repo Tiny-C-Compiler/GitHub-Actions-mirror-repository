@@ -22,3 +22,4 @@ And you do this, remember to trigger workflow, it should all work.
 
 ### Cross-compilation test
 It seems that Personal Access Token (PAT) with `repo` permission scope, might be required to make releases on mirror-repository.  
+https://github.com/organizations/Tiny-C-Compiler/settings/personal-access-tokens-onboarding
