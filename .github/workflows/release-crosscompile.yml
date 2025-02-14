@@ -7,7 +7,7 @@ on:
   pull_request:
     branches:
       - mob
-
+  workflow_dispatch:
 permissions:
   contents: write
 
