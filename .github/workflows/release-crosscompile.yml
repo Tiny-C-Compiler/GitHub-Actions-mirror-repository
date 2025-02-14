@@ -1,13 +1,20 @@
 name: Cross-Platform Build and Release
 
 on:
+  # Trigger every 15 minutes and on manual dispatch.
   schedule:
     - cron: '*/15 * * * *'
   workflow_dispatch:
 
 jobs:
+  # -----------------------------------------------------------
+  # 1. Sync the upstream source into the mirror repository.
+  # -----------------------------------------------------------
   git-sync:
     runs-on: ubuntu-latest
+    outputs:
+      # (optional: you could output the path if needed by downstream jobs)
+      synced: true
     steps:
       - name: Sync repositories
         uses: wei/git-sync@v3
@@ -18,7 +25,10 @@ jobs:
           destination_branch: "mob"
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-  build-binaries:
+  # -----------------------------------------------------------
+  # 2. Build the Linux binary on Ubuntu.
+  # -----------------------------------------------------------
+  build-linux:
     needs: git-sync
     runs-on: ubuntu-latest
     steps:
@@ -30,80 +40,96 @@ jobs:
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
           fetch-depth: 0
 
-      - name: Install build dependencies
+      - name: Install Linux build dependencies
         run: |
-          sudo dpkg --add-architecture i386
           sudo apt-get update
-          sudo apt-get install -y \
-            gcc \
-            make \
-            gcc-mingw-w64-x86-64 \
-            binutils-mingw-w64-x86-64 \
-            mingw-w64-x86-64-dev \
-            build-essential \
-            wine64 \
-            wine32:i386
-
-      - name: Build Linux host compiler
-        run: |
-          ./configure
-          make
-          mv tcc tcc-host
+          sudo apt-get install -y gcc make build-essential
 
       - name: Build Linux binary
         run: |
           ./configure
+          make clean
           make
+          # Rename the built executable for clarity
           mv tcc tcc-linux
+
+      - name: Upload Linux binary artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcc-linux
+          path: tcc-linux
+
+  # -----------------------------------------------------------
+  # 3. Cross-compile the Windows binary using mingw on Ubuntu.
+  # -----------------------------------------------------------
+  build-windows:
+    needs: git-sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mirror repository
+        uses: actions/checkout@v4
+        with:
+          repository: Tiny-C-Compiler/mirror-repository
+          ref: mob
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fetch-depth: 0
+
+      - name: Install Windows cross-compilation dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            gcc-mingw-w64-x86-64 \
+            binutils-mingw-w64-x86-64 \
+            mingw-w64-x86-64-dev \
+            make build-essential
 
       - name: Prepare Windows build environment
         run: |
-          # Clean previous artifacts (keep host compiler)
+          # Clean previous build artifacts (except the Linux host binary)
           make clean
           rm -f config.mak config.h
-
-          # Configure for Windows cross-compilation
+          # Configure for Windows cross-compilation using mingw
           ./configure \
             --cross-prefix=x86_64-w64-mingw32- \
             --cpu=x86_64 \
             --extra-cflags="-static" \
             --extra-ldflags="-static"
-
-          # Patch the Makefile:
-          # • Use host compiler (tcc-host) for helper tools.
-          # • Use the cross-compiler for building Windows binary.
-          # • Define WIN32 and use wine for any Windows executable that runs.
-          sed -i 's/^\(HOST_CC\s*=\s*\).*/\1.\/tcc-host/' Makefile
+          # Adjust the Makefile:
+          # Use the already built Linux executable as a helper if needed.
+          sed -i 's/^\(HOST_CC\s*=\s*\).*/\1.\/tcc-linux/' Makefile
           sed -i 's/^\(CC\s*=\s*\).*/\1x86_64-w64-mingw32-gcc/' Makefile
           sed -i 's/\(CFLAGS\s*+=\)/\1 -DWIN32/' Makefile
-          sed -i 's|./c2str.exe|wine ./c2str.exe|' Makefile
-          # Remove -ldl from linking since it’s not available on Windows.
-          sed -i 's/-ldl//g' Makefile
 
       - name: Build Windows binary
         run: |
-          # Build any helper tools using the host compiler first.
+          # First build helper libraries with the host compiler
           make libtcc1.a
-          # Build the Windows executable with the cross-compiler.
+          # Then build the Windows executable
           make tcc
           mv tcc tcc-windows.exe
 
-      - name: Upload artifacts
+      - name: Upload Windows binary artifact
         uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: |
-            tcc-linux
-            tcc-windows.exe
+          name: tcc-windows
+          path: tcc-windows.exe
 
+  # -----------------------------------------------------------
+  # 4. Create or update the “latest” GitHub Release on the mirror repo.
+  # -----------------------------------------------------------
   create-release:
-    needs: build-binaries
+    needs: [build-linux, build-windows]
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
+      - name: Download Linux artifact
         uses: actions/download-artifact@v4
         with:
-          name: binaries
+          name: tcc-linux
+
+      - name: Download Windows artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: tcc-windows
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
