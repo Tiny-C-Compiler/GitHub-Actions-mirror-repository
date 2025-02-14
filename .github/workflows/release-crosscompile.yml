@@ -1,148 +1,110 @@
-name: Cross-Platform Build and Release
+name: Cross-Compile & Release
 
 on:
-  # Trigger every 15 minutes and on manual dispatch.
-  schedule:
-    - cron: '*/15 * * * *'
+  push:
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
-  # -----------------------------------------------------------
-  # 1. Sync the upstream source into the mirror repository.
-  # -----------------------------------------------------------
-  git-sync:
-    runs-on: ubuntu-latest
-    outputs:
-      # (optional: you could output the path if needed by downstream jobs)
-      synced: true
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
     steps:
-      - name: Sync repositories
-        uses: wei/git-sync@v3
-        with:
-          source_repo: "https://repo.or.cz/tinycc.git"
-          source_branch: "mob"
-          destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
-          destination_branch: "mob"
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Checkout source
+        uses: actions/checkout@v3
 
-  # -----------------------------------------------------------
-  # 2. Build the Linux binary on Ubuntu.
-  # -----------------------------------------------------------
-  build-linux:
-    needs: git-sync
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout mirror repository
-        uses: actions/checkout@v4
-        with:
-          repository: Tiny-C-Compiler/mirror-repository
-          ref: mob
-          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          fetch-depth: 0
-
-      - name: Install Linux build dependencies
+      # --- Setup build dependencies
+      - name: Setup Linux build tools
+        if: matrix.os == 'ubuntu-latest'
         run: |
           sudo apt-get update
-          sudo apt-get install -y gcc make build-essential
+          sudo apt-get install -y build-essential
 
-      - name: Build Linux binary
+      - name: Setup Windows build tools
+        if: matrix.os == 'windows-latest'
         run: |
-          ./configure
-          make clean
-          make
-          # Rename the built executable for clarity
-          mv tcc tcc-linux
+          choco install mingw -y
+        shell: powershell
 
-      - name: Upload Linux binary artifact
-        uses: actions/upload-artifact@v4
+      # --- Run your build script (adjust commands as needed)
+      - name: Build TinyCC
+        run: |
+          if [ "$(uname -s)" = "Linux" ]; then
+            # For Linux, assume you have a Makefile
+            make clean && make
+          else
+            # For Windows, run your batch file
+            ./build-tcc.bat
+          fi
+        shell: bash
+
+      # --- Collect artifacts (adjust paths to your outputs)
+      - name: Prepare artifact folder
+        run: |
+          mkdir artifact
+          # For example, copy the built binaries or ZIP files:
+          cp tcc.exe artifact/ 2>/dev/null || true
+          cp libtcc.dll artifact/ 2>/dev/null || true
+          cp -r some_output_folder artifact/ 2>/dev/null || true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
         with:
-          name: tcc-linux
-          path: tcc-linux
+          name: build-${{ matrix.os }}
+          path: artifact/
 
-  # -----------------------------------------------------------
-  # 3. Cross-compile the Windows binary using mingw on Ubuntu.
-  # -----------------------------------------------------------
-  build-windows:
-    needs: git-sync
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout mirror repository
-        uses: actions/checkout@v4
-        with:
-          repository: Tiny-C-Compiler/mirror-repository
-          ref: mob
-          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
-          fetch-depth: 0
-
-      - name: Install Windows cross-compilation dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            gcc-mingw-w64-x86-64 \
-            binutils-mingw-w64-x86-64 \
-            mingw-w64-x86-64-dev \
-            make build-essential
-
-      - name: Prepare Windows build environment
-        run: |
-          # Clean previous build artifacts (except the Linux host binary)
-          make clean
-          rm -f config.mak config.h
-          # Configure for Windows cross-compilation using mingw
-          ./configure \
-            --cross-prefix=x86_64-w64-mingw32- \
-            --cpu=x86_64 \
-            --extra-cflags="-static" \
-            --extra-ldflags="-static"
-          # Adjust the Makefile:
-          # Use the already built Linux executable as a helper if needed.
-          sed -i 's/^\(HOST_CC\s*=\s*\).*/\1.\/tcc-linux/' Makefile
-          sed -i 's/^\(CC\s*=\s*\).*/\1x86_64-w64-mingw32-gcc/' Makefile
-          sed -i 's/\(CFLAGS\s*+=\)/\1 -DWIN32/' Makefile
-
-      - name: Build Windows binary
-        run: |
-          # First build helper libraries with the host compiler
-          make libtcc1.a
-          # Then build the Windows executable
-          make tcc
-          mv tcc tcc-windows.exe
-
-      - name: Upload Windows binary artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tcc-windows
-          path: tcc-windows.exe
-
-  # -----------------------------------------------------------
-  # 4. Create or update the “latest” GitHub Release on the mirror repo.
-  # -----------------------------------------------------------
-  create-release:
-    needs: [build-linux, build-windows]
+  release:
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Download Linux artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
-          name: tcc-linux
+          name: build-ubuntu-latest
 
       - name: Download Windows artifact
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v3
         with:
-          name: tcc-windows
+          name: build-windows-latest
 
-      - name: Create GitHub Release
-        uses: softprops/action-gh-release@v1
+      # --- Combine both artifacts into one release folder and zip them
+      - name: Prepare release package
+        run: |
+          mkdir release
+          cp -r build-ubuntu-latest/* release/ || true
+          cp -r build-windows-latest/* release/ || true
+          cd release
+          zip -r ../latest-release.zip .
+      
+      # --- Clone the mirror repository (branch "mob") using a dedicated token
+      - name: Checkout mirror repository
+        uses: actions/checkout@v3
         with:
           repository: Tiny-C-Compiler/mirror-repository
+          ref: mob
           token: ${{ secrets.MIRROR_REPO_TOKEN }}
-          tag_name: latest
-          overwrite: true
-          files: |
-            tcc-linux
-            tcc-windows.exe
-          body: |
-            Automated cross-platform build containing:
-            - Linux executable (ELF64)
-            - Windows executable (PE32+)
-            Built from mob branch at $(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          path: mirror
+
+      # --- Copy the release package into the mirror repository and push changes
+      - name: Update mirror repository with new release
+        run: |
+          cp latest-release.zip mirror/
+          cd mirror
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add latest-release.zip
+          git commit -m "Update latest release" || echo "No changes to commit"
+          git push origin mob
+
+      # --- Create or update a GitHub Release on the mirror repository using gh CLI
+      - name: Create GitHub Release in mirror repository
+        run: |
+          gh release create latest latest-release.zip \
+            --repo Tiny-C-Compiler/mirror-repository \
+            --title "Latest Release" \
+            --notes "Automated build and release on $(date -u)"
+        env:
+          GITHUB_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
