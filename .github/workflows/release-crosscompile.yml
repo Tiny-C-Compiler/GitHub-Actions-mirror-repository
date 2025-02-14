@@ -1,67 +1,76 @@
-name: Cross-Compile TCC
+name: Build and Release TCC (mob branch)
 
 on:
-  push:
-    branches:
-      - mob
-  pull_request:
-    branches:
-      - mob
   workflow_dispatch:
+  push:
+    tags:
+      - "v*.*.*"
+
 permissions:
   contents: write
 
 jobs:
   build:
+    name: Compile TCC for multiple targets
     runs-on: ubuntu-latest
 
+    strategy:
+      matrix:
+        target: [linux-x86_64, windows-x86_64, linux-arm]
+
     steps:
-      - name: Checkout TCC source code
-        uses: actions/checkout@v4
-        with:
-          repository: Tiny-C-Compiler/mirror-repository
-          ref: mob
+      - name: Download TCC source (mob branch)
+        run: |
+          wget -O tcc-mob.zip https://github.com/Tiny-C-Compiler/mirror-repository/archive/refs/heads/mob.zip
+          unzip tcc-mob.zip
+          mv mirror-repository-mob tcc
+          cd tcc
 
       - name: Install dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y mingw-w64 gcc-mingw-w64 make autoconf automake
+          sudo apt-get install -y build-essential mingw-w64 gcc-arm-linux-gnueabi
 
-      - name: Debug environment
+      - name: Configure and Build
         run: |
-          echo "PATH: $PATH"
-          echo "GCC Version: $(gcc --version)"
-          echo "MinGW-w64 Version: $(x86_64-w64-mingw32-gcc --version)"
+          cd tcc
+          case "${{ matrix.target }}" in
+            linux-x86_64)
+              ./configure --prefix=/usr
+              make -j$(nproc)
+              mv tcc ../tcc-linux-x86_64
+              ;;
+            windows-x86_64)
+              ./configure --cc=x86_64-w64-mingw32-gcc --prefix=/usr
+              make -j$(nproc)
+              mv tcc.exe ../tcc-windows-x86_64.exe
+              ;;
+            linux-arm)
+              ./configure --cc=arm-linux-gnueabi-gcc --prefix=/usr
+              make -j$(nproc)
+              mv tcc ../tcc-linux-arm
+              ;;
+          esac
 
-      - name: Compile for Linux
-        run: |
-          ./configure
-          make -j$(nproc)
-          strip tcc
-          mv tcc tcc-linux
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcc-${{ matrix.target }}
+          path: tcc-*
 
-      - name: Compile for Windows (cross-compile)
-        run: |
-          ./configure --cross-prefix=x86_64-w64-mingw32-
-          make -j$(nproc)
-          x86_64-w64-mingw32-strip tcc.exe
-          mv tcc.exe tcc-windows.exe
+  release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: build
 
-      - name: Create release artifacts
-        run: |
-          mkdir release
-          mv tcc-linux release/tcc-linux
-          mv tcc-windows.exe release/tcc-windows.exe
-          tar -czvf tcc-latest-linux.tar.gz -C release tcc-linux
-          zip -r tcc-latest-windows.zip release/tcc-windows.exe
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
 
-      - name: Upload release to GitHub
+      - name: Create a release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: latest
-          files: |
-            tcc-latest-linux.tar.gz
-            tcc-latest-windows.zip
-          repository: Tiny-C-Compiler/mirror-repository
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          files: artifacts/**/*
+          token: ${{ secrets.GITHUB_TOKEN }}
