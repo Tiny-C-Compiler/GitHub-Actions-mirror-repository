@@ -1,62 +1,84 @@
-name: Cross-Compile TinyCC
+name: Cross-Compile TCC for Windows & Linux
 
 on:
   push:
     branches:
-      - main  # Change to the branch you want to trigger on
+      - mob
+  pull_request:
+    branches:
+      - mob
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        target: [linux, windows]
-    
-    steps:
-      - name: Checkout Source
-        uses: actions/checkout@v4
-      
-      - name: Install Dependencies
-        run: |
-          sudo apt update
-          sudo apt install -y mingw-w64 build-essential
 
-      - name: Build for Linux
-        if: matrix.target == 'linux'
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+        with:
+          repository: Tiny-C-Compiler/mirror-repository
+          ref: mob
+          fetch-depth: 0
+
+      - name: Install dependencies
         run: |
+          echo "Installing dependencies..."
+          sudo apt update
+          sudo apt install -y mingw-w64 build-essential make autoconf
+
+      - name: Debug: Verify installed compilers
+        run: |
+          echo "GCC version:"
+          gcc --version
+          echo "MinGW-w64 version:"
+          x86_64-w64-mingw32-gcc --version
+
+      - name: Extract version info
+        run: |
+          echo "Extracting version info..."
+          TCC_VERSION=$(head -n 1 VERSION)
+          echo "TCC Version: $TCC_VERSION"
+          echo "TCC_VERSION=$TCC_VERSION" >> $GITHUB_ENV
+
+      - name: Compile for Linux
+        run: |
+          echo "Compiling for Linux..."
           ./configure
           make -j$(nproc)
-          tar -czvf tinycc-linux.tar.gz tcc
+          strip tcc
+          mv tcc tcc-linux
 
-      - name: Build for Windows
-        if: matrix.target == 'windows'
+      - name: Compile for Windows (Cross-Compile)
         run: |
+          echo "Compiling for Windows..."
           ./configure --cross-prefix=x86_64-w64-mingw32-
           make -j$(nproc)
-          zip -r tinycc-windows.zip tcc.exe
+          strip tcc.exe
+          mv tcc.exe tcc-windows.exe
 
-      - name: Upload Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: tinycc-${{ matrix.target }}
-          path: tinycc-*.*
-  
-  release:
-    needs: build
-    runs-on: ubuntu-latest
+      - name: Debug: List built binaries
+        run: ls -lh tcc-linux tcc-windows.exe
 
-    steps:
-      - name: Download Artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
+      - name: Create Release Assets
+        run: |
+          mkdir release
+          mv tcc-linux release/tcc-linux
+          mv tcc-windows.exe release/tcc-windows.exe
+          tar -czvf tcc-linux.tar.gz -C release tcc-linux
+          zip -r tcc-windows.zip release/tcc-windows.exe
+          ls -lh tcc-linux.tar.gz tcc-windows.zip
 
-      - name: Create GitHub Release
+      - name: Upload to GitHub Releases
         uses: softprops/action-gh-release@v2
         with:
+          token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: latest
           repository: Tiny-C-Compiler/mirror-repository
-          files: artifacts/tinycc-*/tinycc-*
-          token: ${{ secrets.GITHUB_TOKEN }}
-          prerelease: true
+          name: "Latest TinyCC Build"
+          body: "Automated build for TinyCC (Linux & Windows)."
           draft: false
+          prerelease: false
+          files: |
+            tcc-linux.tar.gz
+            tcc-windows.zip
