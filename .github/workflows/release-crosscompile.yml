@@ -1,6 +1,7 @@
 name: Build and Release TCC (mob branch)
 
 on:
+  workflow_dispatch:
   push:
     tags:
       - "v*.*.*"
