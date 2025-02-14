@@ -1,0 +1,18 @@
+name: Keep Repository Active
+
+on:
+  schedule:
+    - cron: "0 0 */15 * *"  # Runs every 15 days
+  workflow_dispatch:  # This allows the manual "Run workflow" button
+
+jobs:
+  keep_alive:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Keep the repository active
+        run: echo "This action is running to prevent inactivity"
