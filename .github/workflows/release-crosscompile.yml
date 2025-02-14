@@ -1,4 +1,3 @@
-# Your existing git-sync configuration
 on:
   schedule:
     - cron: '*/15 * * * *'
@@ -22,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout mirror repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         with:
           repository: Tiny-C-Compiler/mirror-repository
           ref: mob
@@ -45,22 +44,31 @@ jobs:
           make
           mv tcc.exe tcc-windows.exe
 
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+      - name: Upload Linux binary
+        uses: actions/upload-artifact@v4
         with:
-          name: binaries
-          path: |
-            tcc-linux
-            tcc-windows.exe
+          name: tcc-linux
+          path: tcc-linux
+
+      - name: Upload Windows binary
+        uses: actions/upload-artifact@v4
+        with:
+          name: tcc-windows.exe
+          path: tcc-windows.exe
 
   create-release:
     needs: build-binaries
     runs-on: ubuntu-latest
     steps:
-      - name: Download artifacts
-        uses: actions/download-artifact@v3
+      - name: Download Linux binary
+        uses: actions/download-artifact@v4
         with:
-          name: binaries
+          name: tcc-linux
+
+      - name: Download Windows binary
+        uses: actions/download-artifact@v4
+        with:
+          name: tcc-windows.exe
 
       - name: Create Release
         uses: softprops/action-gh-release@v1
