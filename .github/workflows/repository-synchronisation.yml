@@ -1,20 +1,13 @@
-name: Keep Repository Active
-
+# checkout@v3: checks-out/downloads your repository under $GITHUB_WORKSPACE with fetch-depth: 1, so your workflow can access it. 
 on:
   schedule:
-    - cron: "*/15 * * * *"  # Runs every 15 minutes
-  workflow_dispatch:  # This allows the manual "Run workflow" button
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
 
 jobs:
   git-sync:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          fetch-depth: 1
-          token: ${{ secrets.GITHUB_TOKEN }}
-
       - name: git-sync
         uses: wei/git-sync@v3
         with:
@@ -22,4 +15,4 @@ jobs:
           source_branch: "mob"
           destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
           destination_branch: "mob"
-          #ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}  # optional
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # optional
