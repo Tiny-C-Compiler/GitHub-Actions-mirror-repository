@@ -1,7 +1,6 @@
-name: Cross Compile to Windows
+name: Cross-Compile TCC for Windows
 
 on:
-  workflow_dispatch:
   push:
     branches:
       - main
@@ -12,60 +11,68 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-
     steps:
-    - name: Checkout Repository
-      uses: actions/checkout@v3
-      with:
-        ref: mob
+      # Step 1: Checkout the repository
+      - name: Checkout Repository
+        uses: actions/checkout@v2
 
-    - name: Set up MinGW cross-compilation toolchain
-      run: |
-        echo "Setting up cross-compilers for Windows..."
-        sudo apt update
-        sudo apt install -y mingw-w64 gcc-mingw-w64-x86-64
+      # Step 2: Download the mob.zip
+      - name: Download TCC Mirror Repository
+        run: |
+          echo "Downloading TCC Mirror Repository..."
+          curl -L -o tcc_mob.zip https://github.com/Tiny-C-Compiler/mirror-repository/archive/refs/heads/mob.zip
+          unzip -q tcc_mob.zip
+          mv mirror-repository-mob tcc_source
+          echo "Download and extraction complete."
 
-    - name: Build the project for Windows
-      run: |
-        echo "Starting build process for Windows target..."
-        mkdir -p build
-        cd build
+      # Step 3: Install cross-compilation tools (MinGW for Windows)
+      - name: Install MinGW and Dependencies
+        run: |
+          echo "Installing MinGW for cross-compilation..."
+          sudo apt-get update
+          sudo apt-get install -y mingw-w64 build-essential
+          echo "MinGW and dependencies installed."
 
-        echo "Running make with MinGW cross-compiler..."
-        CC=x86_64-w64-mingw32-gcc CXX=x86_64-w64-mingw32-g++ ../Makefile
+      # Step 4: Build TCC for Windows (Cross-compiling)
+      - name: Build TCC for Windows
+        run: |
+          echo "Navigating to TCC source directory..."
+          cd tcc_source
+          echo "Starting the cross-compilation process for Windows..."
+          
+          # Debug: Show the contents of the directory
+          ls -l
+          
+          # Set up the cross-compilation environment
+          export CC=x86_64-w64-mingw32-gcc
+          export CXX=x86_64-w64-mingw32-g++
+          export AR=x86_64-w64-mingw32-ar
+          export RANLIB=x86_64-w64-mingw32-ranlib
 
-    - name: Debugging: List files in build directory
-      run: |
-        echo "Listing files in the build directory..."
-        ls -al build
+          # Debug: Check environment variables
+          echo "Using cross-compiler: $CC"
+          echo "Starting to compile TCC..."
+          
+          # Configure and make with debugging output
+          ./configure --host=x86_64-w64-mingw32 --prefix=$PWD/mingw-windows
+          make clean
+          make -j$(nproc)
+          
+          # Debug: Show make result
+          echo "Compilation finished. Checking for errors in the build..."
+          make check
+          echo "TCC for Windows cross-compilation completed."
 
-    - name: Debugging: Check environment variables
-      run: |
-        echo "Checking environment variables..."
-        env
-
-    - name: Debugging: Check MinGW installation
-      run: |
-        echo "Verifying MinGW installation..."
-        mingw-w64-gcc --version
-
-    - name: Debugging: Verify Makefile existence
-      run: |
-        echo "Checking if Makefile exists..."
-        ls -al ../
-
-    - name: List installed packages
-      run: |
-        echo "Listing installed packages..."
-        dpkg -l
-
-    - name: Upload Windows build artifact
-      uses: actions/upload-artifact@v3
-      with:
-        name: windows-build
-        path: build/
-
-    - name: Clean up
-      run: |
-        echo "Cleaning up after build process..."
-        rm -rf build
+      # Step 5: Archive the Windows binaries
+      - name: Archive Windows Binaries
+        run: |
+          echo "Archiving Windows binaries..."
+          tar -czf tcc-windows.tar.gz -C tcc_source mingw-windows
+          echo "Windows binaries archived."
+      
+      # Step 6: Upload the Windows binaries
+      - name: Upload Windows Binaries
+        uses: actions/upload-artifact@v2
+        with:
+          name: tcc-windows
+          path: tcc-windows.tar.gz
