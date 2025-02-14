@@ -53,29 +53,32 @@ jobs:
           make
           mv tcc tcc-linux
 
-      - name: Prepare Windows build
+      - name: Prepare Windows build environment
         run: |
-          # Clean previous configuration but keep host tools
+          # Clean previous build artifacts but keep host compiler
           make clean
           rm -f config.mak config.h
 
-          # Configure for Windows with cross-compilation
+          # Configure for Windows cross-compilation
           ./configure \
             --cross-prefix=x86_64-w64-mingw32- \
             --cpu=x86_64 \
             --extra-cflags="-static" \
             --extra-ldflags="-static"
 
-          # Use host-built compiler for helper tools
+          # Patch Makefile for cross-compilation
           sed -i 's/^\(HOST_CC\s*=\s*\).*/\1.\/tcc-host/' Makefile
-          sed -i 's/^\(HOST_LD\s*=\s*\).*/\1.\/tcc-host/' Makefile
-          sed -i 's/^\(AR\s*=\s*\).*/\1ar/' Makefile
+          sed -i 's/^\(CC\s*=\s*\).*/\1x86_64-w64-mingw32-gcc/' Makefile
+          sed -i 's/\(CFLAGS\s*+=\)/\1 -DWIN32/' Makefile
 
       - name: Build Windows binary
         run: |
-          # Build only the Windows target using host tools
-          make tcc.exe
-          mv tcc.exe tcc-windows.exe
+          # First build helper tools with host compiler
+          make libtcc1.a
+          
+          # Then build Windows executable
+          make tcc
+          mv tcc tcc-windows.exe
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4
