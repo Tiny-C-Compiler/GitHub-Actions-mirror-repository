@@ -1,110 +1,62 @@
-name: Cross-Compile & Release
+name: Cross-Compile TinyCC
 
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+      - main  # Change to the branch you want to trigger on
 
 jobs:
   build:
+    runs-on: ubuntu-latest
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+        target: [linux, windows]
+    
     steps:
-      - name: Checkout source
-        uses: actions/checkout@v3
-
-      # --- Setup build dependencies
-      - name: Setup Linux build tools
-        if: matrix.os == 'ubuntu-latest'
+      - name: Checkout Source
+        uses: actions/checkout@v4
+      
+      - name: Install Dependencies
         run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential
+          sudo apt update
+          sudo apt install -y mingw-w64 build-essential
 
-      - name: Setup Windows build tools
-        if: matrix.os == 'windows-latest'
+      - name: Build for Linux
+        if: matrix.target == 'linux'
         run: |
-          choco install mingw -y
-        shell: powershell
+          ./configure
+          make -j$(nproc)
+          tar -czvf tinycc-linux.tar.gz tcc
 
-      # --- Run your build script (adjust commands as needed)
-      - name: Build TinyCC
+      - name: Build for Windows
+        if: matrix.target == 'windows'
         run: |
-          if [ "$(uname -s)" = "Linux" ]; then
-            # For Linux, assume you have a Makefile
-            make clean && make
-          else
-            # For Windows, run your batch file
-            ./build-tcc.bat
-          fi
-        shell: bash
+          ./configure --cross-prefix=x86_64-w64-mingw32-
+          make -j$(nproc)
+          zip -r tinycc-windows.zip tcc.exe
 
-      # --- Collect artifacts (adjust paths to your outputs)
-      - name: Prepare artifact folder
-        run: |
-          mkdir artifact
-          # For example, copy the built binaries or ZIP files:
-          cp tcc.exe artifact/ 2>/dev/null || true
-          cp libtcc.dll artifact/ 2>/dev/null || true
-          cp -r some_output_folder artifact/ 2>/dev/null || true
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v3
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
-          name: build-${{ matrix.os }}
-          path: artifact/
-
+          name: tinycc-${{ matrix.target }}
+          path: tinycc-*.*
+  
   release:
     needs: build
     runs-on: ubuntu-latest
+
     steps:
-      - name: Download Linux artifact
-        uses: actions/download-artifact@v3
+      - name: Download Artifacts
+        uses: actions/download-artifact@v4
         with:
-          name: build-ubuntu-latest
+          path: artifacts
 
-      - name: Download Windows artifact
-        uses: actions/download-artifact@v3
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
-          name: build-windows-latest
-
-      # --- Combine both artifacts into one release folder and zip them
-      - name: Prepare release package
-        run: |
-          mkdir release
-          cp -r build-ubuntu-latest/* release/ || true
-          cp -r build-windows-latest/* release/ || true
-          cd release
-          zip -r ../latest-release.zip .
-      
-      # --- Clone the mirror repository (branch "mob") using a dedicated token
-      - name: Checkout mirror repository
-        uses: actions/checkout@v3
-        with:
+          tag_name: latest
           repository: Tiny-C-Compiler/mirror-repository
-          ref: mob
-          token: ${{ secrets.MIRROR_REPO_TOKEN }}
-          path: mirror
-
-      # --- Copy the release package into the mirror repository and push changes
-      - name: Update mirror repository with new release
-        run: |
-          cp latest-release.zip mirror/
-          cd mirror
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add latest-release.zip
-          git commit -m "Update latest release" || echo "No changes to commit"
-          git push origin mob
-
-      # --- Create or update a GitHub Release on the mirror repository using gh CLI
-      - name: Create GitHub Release in mirror repository
-        run: |
-          gh release create latest latest-release.zip \
-            --repo Tiny-C-Compiler/mirror-repository \
-            --title "Latest Release" \
-            --notes "Automated build and release on $(date -u)"
-        env:
-          GITHUB_TOKEN: ${{ secrets.MIRROR_REPO_TOKEN }}
+          files: artifacts/tinycc-*/tinycc-*
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prerelease: true
+          draft: false
