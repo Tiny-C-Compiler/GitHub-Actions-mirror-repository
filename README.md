@@ -12,3 +12,11 @@ Guide on using SSH keys to setup Mirroring.
   
 2. Place the generated Public Key into Repository to access it.
 3. Insert Private Key as Actions Repository Secret in the script running repository, so it would use it and gain access.
+
+
+### Visual tutorial for Actions repository to gain access to mirror-repository
+As mentioned you use any SSH key generator. (Example: https://8gwifi.org/sshfunctions.jsp)
+And you do this:
+![image](https://github.com/user-attachments/assets/1542b854-05de-4ca6-9e5c-69c1f9848d76)
+![image](https://github.com/user-attachments/assets/ca77b5fc-2a2e-41eb-8911-3a29d054bbf3)
+
