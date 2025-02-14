@@ -1,0 +1,75 @@
+# Your existing git-sync configuration
+on:
+  schedule:
+    - cron: '*/15 * * * *'
+  workflow_dispatch:
+
+jobs:
+  git-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: git-sync
+        uses: wei/git-sync@v3
+        with:
+          source_repo: "https://repo.or.cz/tinycc.git"
+          source_branch: "mob"
+          destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
+          destination_branch: "mob"
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+  build-binaries:
+    needs: git-sync
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout mirror repository
+        uses: actions/checkout@v3
+        with:
+          repository: Tiny-C-Compiler/mirror-repository
+          ref: mob
+          ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Install cross-compilation tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gcc-mingw-w64-x86-64 build-essential
+
+      - name: Build Linux version
+        run: |
+          ./configure
+          make
+          mv tcc tcc-linux
+
+      - name: Build Windows version
+        run: |
+          ./configure --cross-prefix=x86_64-w64-mingw32-
+          make
+          mv tcc.exe tcc-windows.exe
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: binaries
+          path: |
+            tcc-linux
+            tcc-windows.exe
+
+  create-release:
+    needs: build-binaries
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v3
+        with:
+          name: binaries
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v1
+        with:
+          repository: Tiny-C-Compiler/mirror-repository
+          token: ${{ secrets.MIRROR_REPO_TOKEN }}
+          tag_name: latest
+          overwrite: true
+          files: |
+            tcc-linux
+            tcc-windows.exe
+          body: "Latest cross-platform builds (automatically generated)"
