@@ -28,6 +28,7 @@ jobs:
           repository: Tiny-C-Compiler/mirror-repository
           ref: mob
           ssh-key: ${{ secrets.SSH_PRIVATE_KEY }}
+          fetch-depth: 0
 
       - name: Install build dependencies
         run: |
@@ -40,6 +41,12 @@ jobs:
             mingw-w64-x86-64-dev \
             build-essential
 
+      - name: Build Linux host compiler
+        run: |
+          ./configure
+          make
+          mv tcc tcc-host
+
       - name: Build Linux binary
         run: |
           ./configure
@@ -48,45 +55,41 @@ jobs:
 
       - name: Build Windows binary
         run: |
-          # Configure for Windows target with static linking
-          ./configure --cross-prefix=x86_64-w64-mingw32- \
+          # Clean previous build
+          make distclean || true
+          
+          # Configure for Windows with static linking
+          ./configure \
+            --cross-prefix=x86_64-w64-mingw32- \
+            --enable-cross-prefix \
             --cpu=x86_64 \
             --extra-cflags="-static" \
-            --extra-ldflags="-static" \
-            --with-sysroot=/usr/x86_64-w64-mingw32
+            --extra-ldflags="-static"
 
-          # Remove Linux-specific libraries from Makefile
-          sed -i 's/-ldl//g' Makefile
-          sed -i 's/-lpthread//g' Makefile
+          # Use host compiler for libtcc1 generation
+          sed -i 's/^\(HOST_CC\s*=\s*\).*/\1gcc/' Makefile
+          sed -i 's/^\(HOST_LD\s*=\s*\).*/\1gcc/' Makefile
           
-          make
+          # Build only the necessary targets
+          make tcc.exe
           mv tcc.exe tcc-windows.exe
 
-      - name: Upload Linux artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: tcc-linux
-          path: tcc-linux
-
-      - name: Upload Windows artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: tcc-windows.exe
-          path: tcc-windows.exe
+          name: binaries
+          path: |
+            tcc-linux
+            tcc-windows.exe
 
   create-release:
     needs: build-binaries
     runs-on: ubuntu-latest
     steps:
-      - name: Download Linux binary
+      - name: Download artifacts
         uses: actions/download-artifact@v4
         with:
-          name: tcc-linux
-
-      - name: Download Windows binary
-        uses: actions/download-artifact@v4
-        with:
-          name: tcc-windows.exe
+          name: binaries
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
@@ -102,5 +105,4 @@ jobs:
             Automated cross-platform build containing:
             - Linux executable (ELF64)
             - Windows executable (PE32+)
-            
             Built from mob branch at $(date -u +"%Y-%m-%dT%H:%M:%SZ")
