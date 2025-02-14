@@ -55,23 +55,24 @@ jobs:
 
       - name: Build Windows binary
         run: |
-          # Clean previous build
-          make distclean || true
+          # Clean previous build but keep host compiler
+          make clean
+          rm -f config.mak config.h
           
-          # Configure for Windows with static linking
+          # Configure for Windows with cross-compilation
           ./configure \
             --cross-prefix=x86_64-w64-mingw32- \
-            --enable-cross-prefix \
+            --target=x86_64-w64-mingw32 \
             --cpu=x86_64 \
             --extra-cflags="-static" \
             --extra-ldflags="-static"
 
           # Use host compiler for libtcc1 generation
-          sed -i 's/^\(HOST_CC\s*=\s*\).*/\1gcc/' Makefile
-          sed -i 's/^\(HOST_LD\s*=\s*\).*/\1gcc/' Makefile
+          sed -i 's/^\(CC\s*=\s*\).*/\1gcc/' Makefile
+          sed -i 's/^\(AR\s*=\s*\).*/\1ar/' Makefile
           
-          # Build only the necessary targets
-          make tcc.exe
+          # Build Windows executable
+          make tcc
           mv tcc.exe tcc-windows.exe
 
       - name: Upload artifacts
