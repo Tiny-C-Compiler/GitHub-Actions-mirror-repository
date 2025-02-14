@@ -15,7 +15,7 @@ jobs:
           source_branch: "mob"
           destination_repo: "git@github.com:Tiny-C-Compiler/mirror-repository"
           destination_branch: "mob"
-          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # Since we upload to the other organisation's mirror-repository, we need to use SSH keys to gain access.
+          ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }} # Since we upload to the other organisation's mirror-repository, we need to use SSH keys to gain the other organisational repository's access.
           # Regular Github token only gives access to the current repository.
           # If you see "bad credentials" when running this workflow, it just means that deployment SSH Public key is for some reason not added, got deleted or otherwise gone on the mirror-repository
           # Or the our GitHub-Actions-mirror-repository secret: SSH_PRIVATE_KEY does not match deployment SSH Public key of mirror-repository.
