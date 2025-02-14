@@ -6,7 +6,6 @@ on:
   workflow_dispatch:
 
 jobs:
-  # First, sync from the upstream repo into the mirror repository.
   git-sync:
     runs-on: ubuntu-latest
     steps:
@@ -19,7 +18,6 @@ jobs:
           destination_branch: "mob"
           ssh_private_key: ${{ secrets.SSH_PRIVATE_KEY }}
 
-  # Build Linux and Windows binaries.
   build-binaries:
     needs: git-sync
     runs-on: ubuntu-latest
@@ -34,6 +32,7 @@ jobs:
 
       - name: Install build dependencies
         run: |
+          sudo dpkg --add-architecture i386
           sudo apt-get update
           sudo apt-get install -y \
             gcc \
@@ -42,25 +41,24 @@ jobs:
             binutils-mingw-w64-x86-64 \
             mingw-w64-x86-64-dev \
             build-essential \
-            wine64
+            wine64 \
+            wine32:i386
 
       - name: Build Linux host compiler
         run: |
-          # Build using the native compiler (this binary will be used to run helper tools)
           ./configure
           make
           mv tcc tcc-host
 
       - name: Build Linux binary
         run: |
-          # Reconfigure and rebuild to produce the native Linux executable.
           ./configure
           make
           mv tcc tcc-linux
 
       - name: Prepare Windows build environment
         run: |
-          # Clean previous build artifacts (but keep the host compiler)
+          # Clean previous artifacts (keep host compiler)
           make clean
           rm -f config.mak config.h
 
@@ -72,22 +70,21 @@ jobs:
             --extra-ldflags="-static"
 
           # Patch the Makefile:
-          # • Force the host-built compiler to be used when running helper tools.
-          # • Use the cross-compiler for building Windows binaries.
-          # • Add -DWIN32 for Windows builds.
+          # • Use host compiler (tcc-host) for helper tools.
+          # • Use the cross-compiler for building Windows binary.
+          # • Define WIN32 and use wine for any Windows executable that runs.
           sed -i 's/^\(HOST_CC\s*=\s*\).*/\1.\/tcc-host/' Makefile
           sed -i 's/^\(CC\s*=\s*\).*/\1x86_64-w64-mingw32-gcc/' Makefile
           sed -i 's/\(CFLAGS\s*+=\)/\1 -DWIN32/' Makefile
-
-          # In case any Windows-built helper tool must be executed, patch the call to use Wine.
           sed -i 's|./c2str.exe|wine ./c2str.exe|' Makefile
+          # Remove -ldl from linking since it’s not available on Windows.
+          sed -i 's/-ldl//g' Makefile
 
       - name: Build Windows binary
         run: |
-          # First, build any helper tool (using the host compiler via the patched Makefile)
+          # Build any helper tools using the host compiler first.
           make libtcc1.a
-          
-          # Then, build the Windows executable using the cross-compiler.
+          # Build the Windows executable with the cross-compiler.
           make tcc
           mv tcc tcc-windows.exe
 
@@ -99,7 +96,6 @@ jobs:
             tcc-linux
             tcc-windows.exe
 
-  # Create (or update) a GitHub release in the mirror repository containing both binaries.
   create-release:
     needs: build-binaries
     runs-on: ubuntu-latest
