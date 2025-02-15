@@ -20,3 +20,10 @@ jobs:
           # If you see "bad credentials" when running this workflow, it just means that deployment SSH Public key is for some reason not added, got deleted or otherwise gone on the mirror-repository
           # Or the our GitHub-Actions-mirror-repository secret: SSH_PRIVATE_KEY does not match deployment SSH Public key of mirror-repository.
           # Look at visual tutorial to resolve "bad credentials" https://github.com/Tiny-C-Compiler/GitHub-Actions-mirror-repository?tab=readme-ov-file#visual-tutorial-for-actions-repository-to-gain-access-to-mirror-repository
+  workflow-keepalive:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - uses: liskin/gh-workflow-keepalive@v1
