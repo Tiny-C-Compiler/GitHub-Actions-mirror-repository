@@ -1,19 +1,29 @@
 # Issue that this yml is trying to resolve: Due to no direct interaction with repository the GitHub Action need to be renewed every 60 days.
-name: Keep Repository Active
-
-on:
-  schedule:
-    - cron: "0 0 */15 * *"  # Runs every 15 days
-  workflow_dispatch:  # This allows the manual "Run workflow" button
-
-jobs:
-  keep_alive:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v3
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Keep the repository active
-        run: echo "This action is running to prevent inactivity"
+name: Workflow Keepalive
+description: >-
+  GitHub Action to prevent GitHub from disabling scheduled workflows due to
+  repository inactivity
+branding:
+  icon: activity
+  color: red
+inputs:
+  GITHUB_TOKEN:
+    required: false
+    description: >-
+      GITHUB_TOKEN with actions: write permissions
+      (default: github.token)
+runs:
+  using: composite
+  steps:
+    - name: Re-enable workflow
+      env:
+        GITHUB_TOKEN: ${{ inputs.GITHUB_TOKEN || github.token }}
+      shell: sh
+      run: |
+        case "${GITHUB_WORKFLOW_REF:?}" in
+          "${GITHUB_REPOSITORY:?}"/.github/workflows/*.y*ml@*) ;;
+          *) false ;;
+        esac
+        workflow="${GITHUB_WORKFLOW_REF%%@*}"
+        workflow="${workflow#${GITHUB_REPOSITORY}/.github/workflows/}"
+        gh api -X PUT "repos/${GITHUB_REPOSITORY}/actions/workflows/${workflow}/enable"
