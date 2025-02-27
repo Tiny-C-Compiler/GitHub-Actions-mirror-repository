@@ -23,3 +23,8 @@ And you do this, remember to trigger workflow, it should all work.
 ### Cross-compilation test
 It seems that Personal Access Token (PAT) with `repo` permission scope, might be required to make releases on mirror-repository.  
 https://github.com/organizations/Tiny-C-Compiler/settings/personal-access-tokens-onboarding
+
+### Previous attempts and versions
+Previously there were tests with using a single repository and GitHub actions reside in branch of repository.  
+However to keep mirror repository as uncluttered and to its original state a separate GitHub repository was made to handle the mirroring.  
+https://github.com/Tiny-C-Compiler/mirror-repository/tree/github-actions  
